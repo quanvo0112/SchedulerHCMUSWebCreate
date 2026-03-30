@@ -1,30 +1,66 @@
-# SchedulerRaylibHCMUS
-An simple app to help you visualize your class schedule.
-# Usage
-To start scheduling you have to provide the data of available classes in a Tab-delimited text file in the Release's `resources` folder. You can use the file `resources/extracted_table.txt` that already came with the Release, or use a Google Chrome extension to extract the data directly from "List of Open Class" page on your HCMUS Portal.  
+# SchedulerHCMUSWebCreate
 
-# Table Extraction
-You can download the .txt file containing your avaible classes using a chrome extension included in this repository.
-+ Download this repository
-+ Open Chrome, navigate to `chrome://extensions`
-+ Turn on **Developer Mode** if you haven't yet
-+ Click on **Load Unpacked Extension**, a folder browser window opens up
-+ Choose the folder `chrome_extension` from your downloaded repository. The extension will then be installed on your browser
+SchedulerHCMUSWebCreate is the browser-based version of the original SchedulerRaylibHCMUS project.
+It helps HCMUS students browse available courses, build a personal timetable, and manage schedules with JSON import/export.
 
-Go to "List of Open Class" page on your HCMUS Portal, enable the extension. Click on `Extract Table`, then select the `/resources` directory of your Release, and save the file as `extracted_table.txt`.  
-**Note** The name file must be exactly `extracted_table.txt` for the excutable to work.
+## Core Idea
 
-# How to build
-1. **Install Raylib**  
-Go to the [Raylib's website](https://www.raylib.com/) and download Raylib version 5.5
+- Keep the SchedulerRaylibHCMUS scheduling logic, but run it in a web app.
+- Read available course data directly from the root resources folder.
+- Let users select courses visually and store their timetable in local storage.
 
-2. **Configure your Raylib path**  
-By default, Raylib will be installed at `C:\raylib` and there's no way to change it during set up.  I changed my raylib directory to `D:\raylib` and configured related build files to use this path. In VSCode, You can try `Ctrl + Shift + F`, search for `D:\raylib` in those files and replace it with your own path.
+Original desktop project:
 
-3. **Build the project**  
-In VSCode, press `F5` 
+- https://github.com/hongphuchcmus/SchedulerRaylibHCMUS
 
-# Problems
-The VSCode template is from [Andrew Hamel Codes](https://youtu.be/xWWqhQ1JnvE?si=nqmY1581xXtpsxsh). The author said this workflow is outdated but to me it's a very easy way to get started with Raylib using VSCode. This template helps you seperate your logic into mutiple .c files and .h files.  
+## Features
 
-Note that with this setup, changes made in header files **won't** be recompiled sometimes. If you encounter some weird errors, try clear the build with `make clean` and press `F5` again.  
+- Browse and search available courses.
+- Add and remove classes from your timetable.
+- Detect schedule conflicts and enforce per-day limits.
+- Persist schedule automatically in browser local storage.
+- Export your current schedule as JSON.
+- Import a saved schedule JSON file.
+
+## Data Source
+
+The web app reads available classes from:
+
+- resources/extracted_table.json
+
+This means you do not need to copy or rename data into web/resources.
+
+## Run Locally (JavaScript Only)
+
+Requirements:
+
+- Node.js 18+
+
+Start server:
+
+1. Open terminal at the project root.
+2. Run: node server.js
+3. Open: http://localhost:8080
+
+The Node server serves:
+
+- web app files from the web folder
+- course data from the root resources folder
+
+## Table Extraction (Chrome Extension)
+
+Use this Chrome extension to extract open class data from the HCMUS portal:
+
+- https://github.com/quanvo0112/ESTextension
+
+1. Open Chrome and go to chrome://extensions
+2. Enable Developer Mode
+3. Click Load Unpacked
+4. Download ESTextension, then use Load Unpacked and select its extension folder
+5. On the HCMUS open class page, run the extension extraction
+6. Save output to resources/extracted_table.json
+
+## Project Notes
+
+- The original C/Raylib source is still in src for reference and legacy builds.
+- The active user-facing app is the web implementation in the web folder.
