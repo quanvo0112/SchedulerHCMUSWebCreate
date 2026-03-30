@@ -59,8 +59,3 @@ Use this Chrome extension to extract open class data from the HCMUS portal:
 4. Download ESTextension, then use Load Unpacked and select its extension folder
 5. On the HCMUS open class page, run the extension extraction
 6. Save output to resources/extracted_table.json
-
-## Project Notes
-
-- The original C/Raylib source is still in src for reference and legacy builds.
-- The active user-facing app is the web implementation in the web folder.
