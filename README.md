@@ -24,11 +24,7 @@ Original desktop project:
 
 ## Data Source
 
-The web app reads available classes from:
-
-- resources/extracted_table.json
-
-This means you do not need to copy or rename data into web/resources.
+The web app reads available classes from: resources/extracted_table.json
 
 ## Run Locally (JavaScript Only)
 
@@ -49,9 +45,7 @@ The Node server serves:
 
 ## Table Extraction (Chrome Extension)
 
-Use this Chrome extension to extract open class data from the HCMUS portal:
-
-- https://github.com/quanvo0112/ESTextension
+Use this Chrome extension to extract open class data from the HCMUS portal: https://github.com/quanvo0112/ESTextension
 
 1. Open Chrome and go to chrome://extensions
 2. Enable Developer Mode
