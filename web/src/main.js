@@ -1,8 +1,8 @@
-import { periodToFloat, classToString } from "./core/course-service.js";
+import { periodToFloat } from "./core/course-service.js";
 import { addClassToSchedule, createStudentSchedule, removeClassFromSchedule } from "./core/schedule-service.js";
 import { clearScheduleStorage, loadScheduleFromStorage, saveScheduleToStorage } from "./core/storage-service.js";
 import { fetchAvailableCourses, filterAvailableCourses } from "./core/available-courses-service.js";
-import { PERIODS, renderLegend, renderTimetableShell } from "./ui/render-shell.js";
+import { PERIODS, renderTimetableShell } from "./ui/render-shell.js";
 import { MAX_CLASSES_PER_DAY } from "./models/scheduler-models.js";
 
 const state = {
@@ -12,19 +12,27 @@ const state = {
   availableSearchText: "",
 };
 
+const classColorMap = new Map();
+
 function showStatus(statusEl, message, tone = "ok") {
   statusEl.textContent = message;
   statusEl.classList.remove("ok", "warn");
   statusEl.classList.add(tone);
 }
 
-function hashColorFromText(text) {
-  let hash = 0;
-  const input = String(text || "");
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash * 31 + input.charCodeAt(i)) % 360;
+function getRandomColorForClass(key) {
+  const mapKey = String(key || "");
+  const existing = classColorMap.get(mapKey);
+  if (existing) {
+    return existing;
   }
-  return `hsl(${hash} 70% 55%)`;
+
+  const hue = Math.floor(Math.random() * 360);
+  const saturation = 62 + Math.floor(Math.random() * 14);
+  const lightness = 54 + Math.floor(Math.random() * 10);
+  const color = `hsl(${hue} ${saturation}% ${lightness}%)`;
+  classColorMap.set(mapKey, color);
+  return color;
 }
 
 function classIdentity(item) {
@@ -37,21 +45,51 @@ function classKey(item) {
 
 function renderScheduleList(listEl) {
   if (state.schedule.classes.length === 0) {
-    listEl.innerHTML = "<li>No courses selected yet. Browse available courses above.</li>";
+    listEl.innerHTML = '<p class="available-empty">No courses selected yet. Browse available courses above.</p>';
     return;
   }
 
-  listEl.innerHTML = state.schedule.classes
+  const rowsHtml = state.schedule.classes
     .map(
       (item, index) =>
-        `<li>
-          <span>${classToString(item)}</span>
-          <span class="selected-actions">
-            <button type="button" data-remove-index="${index}">Remove</button>
-          </span>
-        </li>`
+        `<tr class="selected-row">
+          <td><strong>${item.courseId}</strong></td>
+          <td>${item.classId}</td>
+          <td>${item.courseName}</td>
+          <td>T${item.classSchedule.dayOfWeek}</td>
+          <td>${periodToFloat(item.classSchedule.periodStart)} - ${periodToFloat(item.classSchedule.periodEnd)}</td>
+          <td>${item.creditCount} TC</td>
+          <td>${item.enrolledCount}/${item.classSize}</td>
+          <td>${item.year || "N/A"}</td>
+          <td>${item.location || "TBA"}</td>
+          <td>
+            <button type="button" class="action-remove" data-remove-index="${index}">Remove</button>
+          </td>
+        </tr>`
     )
     .join("");
+
+  listEl.innerHTML = `
+    <table class="selected-table" aria-label="My schedule table">
+      <thead>
+        <tr>
+          <th>Course</th>
+          <th>Class</th>
+          <th>Name</th>
+          <th>Day</th>
+          <th>Period</th>
+          <th>Credits</th>
+          <th>Enrolled</th>
+          <th>Year</th>
+          <th>Location</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  `;
 }
 
 function renderAvailableCourses(listEl) {
@@ -63,39 +101,61 @@ function renderAvailableCourses(listEl) {
   }
 
   const selectedIdentities = new Set(state.schedule.classes.map(classIdentity));
-
-  listEl.innerHTML = filtered
+  const rowsHtml = filtered
     .map((item) => {
       const identity = classIdentity(item);
       const disabled = selectedIdentities.has(identity);
       const disabledAttr = disabled ? "disabled" : "";
       const buttonText = disabled ? "Added" : "Add";
+      const periodStart = periodToFloat(item.classSchedule.periodStart);
+      const periodEnd = periodToFloat(item.classSchedule.periodEnd);
+      const aliasHtml = item.courseAlias
+        ? `<div class="available-meta">Alias: ${item.courseAlias}</div>`
+        : "";
 
       return `
-        <article class="available-row">
-          <div>
-            <strong>${item.courseId}</strong>
-            <div class="available-meta">${item.classId}</div>
-          </div>
-          <div>
-            <strong>${item.courseName}</strong>
-            <div class="available-meta">${item.location || "TBA"}</div>
-          </div>
-          <div>
-            <strong>T${item.classSchedule.dayOfWeek}</strong>
-            <div class="available-meta">${periodToFloat(item.classSchedule.periodStart)} - ${periodToFloat(item.classSchedule.periodEnd)}</div>
-          </div>
-          <div>
-            <strong>${item.creditCount} TC</strong>
-            <div class="available-meta">${item.enrolledCount}/${item.classSize}</div>
-          </div>
-          <div>
+        <tr class="available-row">
+          <td><strong>${item.courseId}</strong></td>
+          <td>${item.classId}</td>
+          <td>
+            <div><strong>${item.courseName}</strong></div>
+            ${aliasHtml}
+          </td>
+          <td>T${item.classSchedule.dayOfWeek}</td>
+          <td>${periodStart} - ${periodEnd}</td>
+          <td>${item.creditCount} TC</td>
+          <td>${item.enrolledCount}/${item.classSize}</td>
+          <td>${item.year || "N/A"}</td>
+          <td>${item.location || "TBA"}</td>
+          <td>
             <button type="button" class="action-add" data-add-key="${classKey(item)}" ${disabledAttr}>${buttonText}</button>
-          </div>
-        </article>
+          </td>
+        </tr>
       `;
     })
     .join("");
+
+  listEl.innerHTML = `
+    <table class="available-table" aria-label="Available courses table">
+      <thead>
+        <tr>
+          <th>Course</th>
+          <th>Class</th>
+          <th>Name</th>
+          <th>Day</th>
+          <th>Period</th>
+          <th>Credits</th>
+          <th>Enrolled</th>
+          <th>Year</th>
+          <th>Location</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  `;
 }
 
 
@@ -103,6 +163,8 @@ function renderAvailableCourses(listEl) {
 function clearTimetableCells(timetableEl) {
   timetableEl.querySelectorAll(".slot-cell").forEach((cell) => {
     cell.innerHTML = "";
+    cell.style.display = "";
+    cell.removeAttribute("rowspan");
   });
 }
 
@@ -113,26 +175,38 @@ function renderScheduleOnGrid(timetableEl) {
     const day = Number(courseClass.classSchedule.dayOfWeek);
     const periodStartFloat = periodToFloat(courseClass.classSchedule.periodStart);
     const periodEndFloat = periodToFloat(courseClass.classSchedule.periodEnd);
-    const slotColor = hashColorFromText(`${courseClass.courseId}-${courseClass.classId}`);
+    const slotColor = getRandomColorForClass(classKey(courseClass));
 
-    PERIODS.forEach((period) => {
-      if (period < periodStartFloat || period > periodEndFloat) {
-        return;
+    const periodSlots = PERIODS.filter(
+      (period) => period >= periodStartFloat && period <= periodEndFloat
+    );
+
+    if (periodSlots.length === 0) {
+      return;
+    }
+
+    const firstSelector = `.slot-cell[data-day=\"${day}\"][data-period=\"${periodSlots[0]}\"]`;
+    const firstCell = timetableEl.querySelector(firstSelector);
+    if (!firstCell) {
+      return;
+    }
+
+    firstCell.setAttribute("rowspan", String(periodSlots.length));
+    firstCell.innerHTML = `
+      <article class="slot-card" style="--slot-color:${slotColor};">
+        <strong>${courseClass.courseName}</strong>
+        <small>${courseClass.classId} | ${courseClass.location || "TBA"}</small>
+        <small>T${day} | ${periodStartFloat} - ${periodEndFloat}</small>
+      </article>
+    `;
+
+    for (let i = 1; i < periodSlots.length; i += 1) {
+      const selector = `.slot-cell[data-day=\"${day}\"][data-period=\"${periodSlots[i]}\"]`;
+      const continuationCell = timetableEl.querySelector(selector);
+      if (continuationCell) {
+        continuationCell.style.display = "none";
       }
-
-      const selector = `.slot-cell[data-day=\"${day}\"][data-period=\"${period}\"]`;
-      const targetCell = timetableEl.querySelector(selector);
-      if (!targetCell) {
-        return;
-      }
-
-      targetCell.innerHTML = `
-        <article class="slot-card" style="--slot-color:${slotColor};">
-          <strong>${courseClass.courseName}</strong>
-          <small>${courseClass.classId} | ${courseClass.location || "TBA"}</small>
-        </article>
-      `;
-    });
+    }
   });
 }
 
@@ -165,10 +239,10 @@ function bootstrapStep3UI() {
   const importFileEl = document.getElementById("importScheduleFile");
   const clearBtnEl = document.getElementById("clearScheduleBtn");
   const availableSearchEl = document.getElementById("availableSearch");
+  const availableStatusEl = document.getElementById("availableStatus");
   const availableListEl = document.getElementById("availableCourses");
   const listEl = document.getElementById("selectedClasses");
   const timetableEl = document.getElementById("timetable");
-  const legendEl = document.getElementById("legend");
 
   if (
     !statusEl ||
@@ -177,16 +251,15 @@ function bootstrapStep3UI() {
     !importFileEl ||
     !clearBtnEl ||
     !availableSearchEl ||
+    !availableStatusEl ||
     !availableListEl ||
     !listEl ||
-    !timetableEl ||
-    !legendEl
+    !timetableEl
   ) {
     throw new Error("UI boot failed: missing required DOM nodes");
   }
 
   renderTimetableShell(timetableEl);
-  renderLegend(legendEl);
 
   saveAndRender(timetableEl, listEl, availableListEl);
 
@@ -194,10 +267,10 @@ function bootstrapStep3UI() {
     .then((courses) => {
       state.availableCourses = courses;
       renderAvailableCourses(availableListEl);
-      showStatus(statusEl, `Loaded ${courses.length} available courses from JSON`, "ok");
+      showStatus(availableStatusEl, `Loaded ${courses.length} available courses from JSON`, "ok");
     })
     .catch((error) => {
-      showStatus(statusEl, error.message || "Unable to load available courses", "warn");
+      showStatus(availableStatusEl, error.message || "Unable to load available courses", "warn");
       renderAvailableCourses(availableListEl);
     });
 

@@ -19,23 +19,34 @@ export function renderPeriodOptions(startSelect, endSelect) {
 }
 
 export function renderTimetableShell(container) {
-  const cells = [];
+  const headCells = WEEK_DAYS.map((day) => `<th class="day-col-head">${day.label}</th>`).join("");
 
-  cells.push('<div class="time-col-head">Period</div>');
-  WEEK_DAYS.forEach((day) => {
-    cells.push(`<div class="day-col-head">${day.label}</div>`);
-  });
+  const bodyRows = PERIODS.map((period) => {
+    const dayCells = WEEK_DAYS.map(
+      (day) => `<td class="slot-cell" data-day="${day.value}" data-period="${period}"></td>`
+    ).join("");
 
-  PERIODS.forEach((period) => {
-    cells.push(`<div class="period-label">P${period}</div>`);
-    WEEK_DAYS.forEach((day) => {
-      cells.push(
-        `<div class="slot-cell" data-day="${day.value}" data-period="${period}"></div>`
-      );
-    });
-  });
+    return `
+      <tr>
+        <th class="period-label" scope="row">P${period}</th>
+        ${dayCells}
+      </tr>
+    `;
+  }).join("");
 
-  container.innerHTML = cells.join("");
+  container.innerHTML = `
+    <table class="timetable-table" aria-label="Weekly timetable">
+      <thead>
+        <tr>
+          <th class="time-col-head">Period</th>
+          ${headCells}
+        </tr>
+      </thead>
+      <tbody>
+        ${bodyRows}
+      </tbody>
+    </table>
+  `;
 }
 
 export function renderLegend(container) {
