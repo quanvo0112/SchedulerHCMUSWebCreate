@@ -1,9 +1,10 @@
 import { periodToFloat } from "./core/course-service.js";
 import { addClassToSchedule, createStudentSchedule, removeClassFromSchedule } from "./core/schedule-service.js";
 import { clearScheduleStorage, loadScheduleFromStorage, saveScheduleToStorage } from "./core/storage-service.js";
-import { fetchAvailableCourses, filterAvailableCourses } from "./core/available-courses-service.js";
+import { fetchAvailableCourses } from "./core/available-courses-service.js";
 import { PERIODS, renderTimetableShell } from "./ui/render-shell.js";
-import { classIdentity, classKey, getExportFilename, getRandomColorForClass, showStatus } from "./ui/ui-utils.js";
+import { renderAvailableCourses, renderScheduleList } from "./ui/render-tables.js";
+import { classKey, getExportFilename, getRandomColorForClass, showStatus } from "./ui/ui-utils.js";
 import { MAX_CLASSES_PER_DAY } from "./models/scheduler-models.js";
 
 const state = {
@@ -12,129 +13,6 @@ const state = {
   availableCourses: [],
   availableSearchText: "",
 };
-
-function renderScheduleList(listEl) {
-  if (state.schedule.classes.length === 0) {
-    listEl.innerHTML = '<p class="available-empty">No courses selected yet. Browse available courses above.</p>';
-    return;
-  }
-
-  const rowsHtml = state.schedule.classes
-    .map(
-      (item, index) =>
-        `<tr class="selected-row">
-          <td><strong>${item.courseId}</strong></td>
-          <td>${item.classId}</td>
-          <td>${item.courseName}</td>
-          <td>T${item.classSchedule.dayOfWeek}</td>
-          <td>${periodToFloat(item.classSchedule.periodStart)} - ${periodToFloat(item.classSchedule.periodEnd)}</td>
-          <td>${item.creditCount} TC</td>
-          <td>${item.enrolledCount}/${item.classSize}</td>
-          <td>${item.year || "N/A"}</td>
-          <td>${item.location || "TBA"}</td>
-          <td>
-            <button type="button" class="action-remove" data-remove-index="${index}">Remove</button>
-          </td>
-        </tr>`
-    )
-    .join("");
-
-  listEl.innerHTML = `
-    <table class="selected-table" aria-label="My schedule table">
-      <thead>
-        <tr>
-          <th>Course</th>
-          <th>Class</th>
-          <th>Name</th>
-          <th>Day</th>
-          <th>Period</th>
-          <th>Credits</th>
-          <th>Enrolled</th>
-          <th>Year</th>
-          <th>Location</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rowsHtml}
-      </tbody>
-    </table>
-  `;
-}
-
-function renderAvailableCourses(listEl) {
-  const filtered = filterAvailableCourses(state.availableCourses, state.availableSearchText);
-
-  if (filtered.length === 0) {
-    listEl.innerHTML = '<p class="available-empty">No available courses match your search.</p>';
-    return;
-  }
-
-  const selectedIdentities = new Set(state.schedule.classes.map(classIdentity));
-  const rowsHtml = filtered
-    .map((item) => {
-      const identity = classIdentity(item);
-      const disabled = selectedIdentities.has(identity);
-      const disabledAttr = disabled ? "disabled" : "";
-      const buttonText = disabled ? "Added" : "Add";
-      const periodStart = periodToFloat(item.classSchedule.periodStart);
-      const periodEnd = periodToFloat(item.classSchedule.periodEnd);
-      const exerciseGroup = String(item["Nhóm BT"] || "").trim() || "-";
-      const practiceGroup = String(item["Nhóm TH"] || "").trim() || "-";
-      const aliasHtml = item.courseAlias
-        ? `<div class="available-meta">Alias: ${item.courseAlias}</div>`
-        : "";
-
-      return `
-        <tr class="available-row">
-          <td><strong>${item.courseId}</strong></td>
-          <td>${item.classId}</td>
-          <td>
-            <div><strong>${item.courseName}</strong></div>
-            ${aliasHtml}
-          </td>
-          <td>${exerciseGroup}</td>
-          <td>${practiceGroup}</td>
-          <td>T${item.classSchedule.dayOfWeek}</td>
-          <td>${periodStart} - ${periodEnd}</td>
-          <td>${item.creditCount} TC</td>
-          <td>${item.enrolledCount}/${item.classSize}</td>
-          <td>${item.year || "N/A"}</td>
-          <td>${item.location || "TBA"}</td>
-          <td>
-            <button type="button" class="action-add" data-add-key="${classKey(item)}" ${disabledAttr}>${buttonText}</button>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  listEl.innerHTML = `
-    <table class="available-table" aria-label="Available courses table">
-      <thead>
-        <tr>
-          <th>Course</th>
-          <th>Class</th>
-          <th>Name</th>
-          <th>NHÓM BT</th>
-          <th>NHÓM TH</th>
-          <th>Day</th>
-          <th>Period</th>
-          <th>Credits</th>
-          <th>Enrolled</th>
-          <th>Year</th>
-          <th>Location</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rowsHtml}
-      </tbody>
-    </table>
-  `;
-}
-
-
 
 function clearTimetableCells(timetableEl) {
   timetableEl.querySelectorAll(".slot-cell").forEach((cell) => {
@@ -189,8 +67,8 @@ function renderScheduleOnGrid(timetableEl) {
 function saveAndRender(timetableEl, listEl, availableListEl) {
   saveScheduleToStorage(state.schedule);
   renderScheduleOnGrid(timetableEl);
-  renderScheduleList(listEl);
-  renderAvailableCourses(availableListEl);
+  renderScheduleList(listEl, state.schedule);
+  renderAvailableCourses(availableListEl, state.availableCourses, state.schedule, state.availableSearchText);
 }
 
 function canAddInDay(schedule, dayOfWeek) {
@@ -264,12 +142,22 @@ function bootstrapStep3UI() {
   fetchAvailableCourses()
     .then((courses) => {
       state.availableCourses = courses;
-      renderAvailableCourses(availableListEl);
+      renderAvailableCourses(
+        availableListEl,
+        state.availableCourses,
+        state.schedule,
+        state.availableSearchText
+      );
       showStatus(availableStatusEl, `Loaded ${courses.length} available courses from JSON`, "ok");
     })
     .catch((error) => {
       showStatus(availableStatusEl, error.message || "Unable to load available courses", "warn");
-      renderAvailableCourses(availableListEl);
+      renderAvailableCourses(
+        availableListEl,
+        state.availableCourses,
+        state.schedule,
+        state.availableSearchText
+      );
     });
 
 
@@ -358,7 +246,12 @@ function bootstrapStep3UI() {
 
   availableSearchEl.addEventListener("input", () => {
     state.availableSearchText = availableSearchEl.value;
-    renderAvailableCourses(availableListEl);
+    renderAvailableCourses(
+      availableListEl,
+      state.availableCourses,
+      state.schedule,
+      state.availableSearchText
+    );
   });
 
   availableListEl.addEventListener("click", (event) => {
