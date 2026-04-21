@@ -37,7 +37,7 @@ function normalizeRawCourse(rawItem) {
     throw new Error("Missing required course fields");
   }
 
-  return new CourseClass({
+  const course = new CourseClass({
     courseId,
     courseName,
     classId,
@@ -48,6 +48,21 @@ function normalizeRawCourse(rawItem) {
     location,
     classSchedule: parseScheduleField(scheduleText),
   });
+
+  const rawNhomBT = rawItem["Nhóm BT"];
+  const rawNhomTH = rawItem["Nhóm TH"];
+
+  // Preserve exact source keys and assign model-level fallback for missing values.
+  course["Nhóm BT"] =
+    rawNhomBT !== undefined && rawNhomBT !== null && String(rawNhomBT).trim() !== ""
+      ? String(rawNhomBT).trim()
+      : "-";
+  course["Nhóm TH"] =
+    rawNhomTH !== undefined && rawNhomTH !== null && String(rawNhomTH).trim() !== ""
+      ? String(rawNhomTH).trim()
+      : "-";
+
+  return course;
 }
 
 export async function fetchAvailableCourses(url = DEFAULT_COURSES_URL) {
@@ -73,14 +88,63 @@ export async function fetchAvailableCourses(url = DEFAULT_COURSES_URL) {
   return normalized;
 }
 
+export function removeVietnameseTones(str) {
+  return String(str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .trim()
+    .toLowerCase();
+}
+
+export function hasVietnameseAccents(str) {
+  return /[àáảãạâầấẩẫậăằắẳẵặèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(
+    String(str || "")
+  );
+}
+
+export function standardizeVietnameseTones(str) {
+  return String(str || "")
+    .normalize("NFC")
+    .replace(/oà/g, "òa")
+    .replace(/oá/g, "óa")
+    .replace(/oả/g, "ỏa")
+    .replace(/oã/g, "õa")
+    .replace(/oạ/g, "ọa")
+    .replace(/uỳ/g, "ùy")
+    .replace(/uý/g, "úy")
+    .replace(/uỷ/g, "ủy")
+    .replace(/uỹ/g, "ũy")
+    .replace(/uỵ/g, "ụy")
+    .replace(/Oà/g, "Òa")
+    .replace(/Oá/g, "Óa")
+    .replace(/Oả/g, "Ỏa")
+    .replace(/Oã/g, "Õa")
+    .replace(/Oạ/g, "Ọa")
+    .replace(/Uỳ/g, "Ùy")
+    .replace(/Uý/g, "Úy")
+    .replace(/Uỷ/g, "Ủy")
+    .replace(/Uỹ/g, "Ũy")
+    .replace(/Uỵ/g, "Ụy");
+}
+
 export function filterAvailableCourses(courses, searchText) {
-  const query = String(searchText || "").trim().toLowerCase();
-  if (!query) {
+  const searchQuery = String(searchText || "").trim();
+  if (!searchQuery) {
     return courses || [];
   }
 
+  const hasAccents = hasVietnameseAccents(searchQuery);
+  const queryForMatch = hasAccents
+    ? standardizeVietnameseTones(searchQuery).toLowerCase()
+    : removeVietnameseTones(searchQuery);
+
   return (courses || []).filter((item) => {
-    const text = `${item.courseId} ${item.courseName} ${item.classId} ${item.location}`.toLowerCase();
-    return text.includes(query);
+    const dataString = `${item.courseId} ${item.courseName} ${item.classId} ${item.location}`;
+    const dataForMatch = hasAccents
+      ? standardizeVietnameseTones(dataString).toLowerCase()
+      : removeVietnameseTones(dataString);
+    return dataForMatch.includes(queryForMatch);
   });
 }
