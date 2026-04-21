@@ -3,6 +3,7 @@ import { addClassToSchedule, createStudentSchedule, removeClassFromSchedule } fr
 import { clearScheduleStorage, loadScheduleFromStorage, saveScheduleToStorage } from "./core/storage-service.js";
 import { fetchAvailableCourses, filterAvailableCourses } from "./core/available-courses-service.js";
 import { PERIODS, renderTimetableShell } from "./ui/render-shell.js";
+import { classIdentity, classKey, getExportFilename, getRandomColorForClass, showStatus } from "./ui/ui-utils.js";
 import { MAX_CLASSES_PER_DAY } from "./models/scheduler-models.js";
 
 const state = {
@@ -11,42 +12,6 @@ const state = {
   availableCourses: [],
   availableSearchText: "",
 };
-
-const classColorMap = new Map();
-
-function showStatus(statusEl, message, tone = "ok") {
-  statusEl.textContent = message;
-  statusEl.classList.remove("ok", "warn");
-  statusEl.classList.add(tone);
-}
-
-function getExportFilename(extension) {
-  const currentDate = new Date().toISOString().split("T")[0];
-  return `unitime-hcmus-schedule-${currentDate}.${extension}`;
-}
-
-function getRandomColorForClass(key) {
-  const mapKey = String(key || "");
-  const existing = classColorMap.get(mapKey);
-  if (existing) {
-    return existing;
-  }
-
-  const hue = Math.floor(Math.random() * 360);
-  const saturation = 62 + Math.floor(Math.random() * 14);
-  const lightness = 54 + Math.floor(Math.random() * 10);
-  const color = `hsl(${hue} ${saturation}% ${lightness}%)`;
-  classColorMap.set(mapKey, color);
-  return color;
-}
-
-function classIdentity(item) {
-  return `${item.courseId}::${item.classId}::${item.classSchedule.dayOfWeek}`;
-}
-
-function classKey(item) {
-  return `${item.courseId}::${item.classId}::${item.classSchedule.dayOfWeek}::${item.classSchedule.periodStart}::${item.classSchedule.periodEnd}`;
-}
 
 function renderScheduleList(listEl) {
   if (state.schedule.classes.length === 0) {
