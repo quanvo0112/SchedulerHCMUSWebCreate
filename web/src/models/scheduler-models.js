@@ -1,7 +1,3 @@
-// Step 1 migration from C headers (course.h, schedule.h, def.h)
-// ES module format for modern browser usage.
-
-// course.h column indexes
 export const COURSE_COLUMNS = Object.freeze({
   COURSE_ID: 0,
   COURSE_NAME: 1,
@@ -16,7 +12,6 @@ export const COURSE_COLUMNS = Object.freeze({
 
 export const MAX_CLASSES_PER_DAY = 4;
 
-// course.h property indexes
 export const FILTER_PROPERTY = Object.freeze({
   ALL: 0,
   COURSE_ID: 1,
@@ -24,7 +19,6 @@ export const FILTER_PROPERTY = Object.freeze({
   CLASS_ID: 3,
 });
 
-// Equivalent of enum Period in course.h
 export const Period = Object.freeze({
   PERIOD_1: "PERIOD_1",
   PERIOD_2: "PERIOD_2",
