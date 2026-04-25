@@ -3,73 +3,11 @@ import { addClassToSchedule, createStudentSchedule, removeClassFromSchedule } fr
 import { clearScheduleStorage, loadScheduleFromStorage, saveScheduleToStorage } from "./core/storage-service.js";
 import { fetchAvailableCourses } from "./core/available-courses-service.js";
 import { PERIODS, renderTimetableShell } from "./ui/render-shell.js";
+import { renderScheduleOnGrid } from "./ui/render-grid.js";
 import { renderAvailableCourses, renderScheduleList } from "./ui/render-tables.js";
-import { classKey, getExportFilename, getRandomColorForClass, showStatus } from "./ui/ui-utils.js";
+import { initializeThemeToggle } from "./ui/theme-manager.js";
+import { classKey, getExportFilename, showStatus } from "./ui/ui-utils.js";
 import { MAX_CLASSES_PER_DAY } from "./models/scheduler-models.js";
-
-const THEME_STORAGE_KEY = "unitime-theme";
-const THEME_TOGGLE_ID = "themeToggleBtn";
-
-function getStoredTheme() {
-  try {
-    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    return storedTheme === "dark" || storedTheme === "light" ? storedTheme : null;
-  } catch (error) {
-    return null;
-  }
-}
-
-function getSystemTheme() {
-  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function applyTheme(theme) {
-  const resolvedTheme = theme === "dark" ? "dark" : "light";
-  document.documentElement.dataset.theme = resolvedTheme;
-
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, resolvedTheme);
-  } catch (error) {
-    // Ignore storage failures and keep the current session theme in memory.
-  }
-
-  return resolvedTheme;
-}
-
-function syncThemeToggle(toggleEl, theme) {
-  const isDark = theme === "dark";
-  const iconEl = toggleEl.querySelector(".theme-toggle__icon");
-  const labelEl = toggleEl.querySelector(".theme-toggle__label");
-
-  toggleEl.setAttribute("aria-pressed", String(isDark));
-  toggleEl.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
-
-  if (iconEl instanceof HTMLElement) {
-    iconEl.textContent = isDark ? "☾" : "☀";
-  }
-
-  if (labelEl instanceof HTMLElement) {
-    labelEl.textContent = isDark ? "Dark" : "Light";
-  }
-}
-
-function initializeThemeToggle() {
-  const toggleEl = document.getElementById(THEME_TOGGLE_ID);
-  if (!toggleEl) {
-    return;
-  }
-
-  const savedTheme = getStoredTheme();
-  const initialTheme = savedTheme || document.documentElement.dataset.theme || getSystemTheme();
-  const appliedTheme = applyTheme(initialTheme);
-  syncThemeToggle(toggleEl, appliedTheme);
-
-  toggleEl.addEventListener("click", () => {
-    const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    const appliedNextTheme = applyTheme(nextTheme);
-    syncThemeToggle(toggleEl, appliedNextTheme);
-  });
-}
 
 const state = {
   schedule: createStudentSchedule(),
@@ -78,59 +16,9 @@ const state = {
   availableSearchText: "",
 };
 
-function clearTimetableCells(timetableEl) {
-  timetableEl.querySelectorAll(".slot-cell").forEach((cell) => {
-    cell.innerHTML = "";
-    cell.style.display = "";
-    cell.removeAttribute("rowspan");
-  });
-}
-
-function renderScheduleOnGrid(timetableEl) {
-  clearTimetableCells(timetableEl);
-
-  state.schedule.classes.forEach((courseClass) => {
-    const day = Number(courseClass.classSchedule.dayOfWeek);
-    const periodStartFloat = periodToFloat(courseClass.classSchedule.periodStart);
-    const periodEndFloat = periodToFloat(courseClass.classSchedule.periodEnd);
-    const slotColor = getRandomColorForClass(classKey(courseClass));
-
-    const periodSlots = PERIODS.filter(
-      (period) => period >= periodStartFloat && period <= periodEndFloat
-    );
-
-    if (periodSlots.length === 0) {
-      return;
-    }
-
-    const firstSelector = `.slot-cell[data-day=\"${day}\"][data-period=\"${periodSlots[0]}\"]`;
-    const firstCell = timetableEl.querySelector(firstSelector);
-    if (!firstCell) {
-      return;
-    }
-
-    firstCell.setAttribute("rowspan", String(periodSlots.length));
-    firstCell.innerHTML = `
-      <article class="slot-card" style="--slot-color:${slotColor};">
-        <strong>${courseClass.courseName}</strong>
-        <small>${courseClass.classId} | ${courseClass.location || "TBA"}</small>
-        <small>T${day} | ${periodStartFloat} - ${periodEndFloat}</small>
-      </article>
-    `;
-
-    for (let i = 1; i < periodSlots.length; i += 1) {
-      const selector = `.slot-cell[data-day=\"${day}\"][data-period=\"${periodSlots[i]}\"]`;
-      const continuationCell = timetableEl.querySelector(selector);
-      if (continuationCell) {
-        continuationCell.style.display = "none";
-      }
-    }
-  });
-}
-
 function saveAndRender(timetableEl, listEl, availableListEl) {
   saveScheduleToStorage(state.schedule);
-  renderScheduleOnGrid(timetableEl);
+  renderScheduleOnGrid(timetableEl, state.schedule);
   renderScheduleList(listEl, state.schedule);
   renderAvailableCourses(availableListEl, state.availableCourses, state.schedule, state.availableSearchText);
 }
